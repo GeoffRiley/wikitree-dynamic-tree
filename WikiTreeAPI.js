@@ -6,6 +6,8 @@
  *
  */
 
+/* jshint strict: true, esversion: 9 */
+
 // Put our functions into a "WikiTreeAPI" namespace.
 window.WikiTreeAPI = window.WikiTreeAPI || {};
 
@@ -357,6 +359,64 @@ WikiTreeAPI.getWatchlist = function (limit, getPerson, getSpace, fields) {
         return result[0].watchlist;
     });
 };
+
+/**
+ * To get the photos for a given ID, we POST to the API's getPhotos action. When we get a result back we leave the
+ * result as an array of objects as given in https://github.com/wikitree/wikitree-api/blob/main/getPhotos.md
+ *
+ * The ID given may be one of:
+ *      a WikiTree ID, i.e. Surname-{number}
+ *      a page ID, i.e. {number}
+ *      a free-space profile name, i.e. Space:PageName, note that the 'Space:' is _required_
+ *
+ * An associative array of options should be provided in order to vary the default options if required. Options are:
+ *      resolveRedirect:    If 1, then requested profiles that are redirections are followed to the final profile
+ *      limit:              The number of photos to return. Default = 10. Maximum = 100.
+ *      start:              The starting index of the photo set. Default = 0. [First photo]
+ *      order:              The sort order of the photos. Valid values are:
+ *                              "PageID"        [Default]
+ *                              "Uploaded"      [Uploaded time stamp]
+ *                              "ImageName"     [The base filename of the image]
+ *                              "Date"          [The descriptive date]
+ *
+ * Returns an array containing up to six fields:
+ *      status:             The status of the query response. 0 = everything okay. {string} = error message.
+ *      page_name:          The translated version of the original passed id
+ *   or page_id:
+ *      limit:              Confirmation of limit passed
+ *      start:              Confirmation of start passed
+ *      order:              Confirmation of order passed
+ *      photos:             Array of photo results, each photo record consists of:
+ *                  PageId:     The pageId of the image/photo
+ *                  ImageName:  Base filename of the photo
+ *                  Title:      Title from Image details
+ *                  Location:   Location from Image details
+ *                  Date:       Date from Image details
+ *                  Type:       Type from Image details, 'photo' or 'source'
+ *                  Size:       Size of image in bytes
+ *                  Width:      Width of image in pixels
+ *                  Height:     Height of image in pixels
+ *                  Uploaded:   Date and time when the image was uploaded to WT
+ *                  URL:        The URL (relative to https://wikitree.com/) of the Image page, usually /photo/ext/ImageName
+ *                  URL_300:    The relative URL of the 300px version of the image
+ *                  URL_75:     The relative URL of the 75px version of the image
+ *
+ * @param {int,string} id
+ * @param {*} options
+ */
+WikiTreeAPI.getPhotos = function (id, options = {}) {
+    const DEFAULT_OPTIONS = { resolveRedirect: 1, limit: 10, start: 0, order: "PageId" };
+    // Merge passed options and set the correct action (to prevent overriding)
+    let get_photo_ops = { ...DEFAULT_OPTIONS, ...options, action: "getPhotos", key: id };
+    return WikiTreeAPI.postToAPI(get_photo_ops).then(function (result) {
+        return result[0];
+    });
+};
+
+/**
+ *
+ */
+WikiTreeAPI.getDescendants = function () {};
 
 // This is just a wrapper for the Ajax call, sending along necessary options for the WikiTree API.
 WikiTreeAPI.postToAPI = function (postData) {

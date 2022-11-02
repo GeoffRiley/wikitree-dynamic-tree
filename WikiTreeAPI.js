@@ -6,10 +6,12 @@
  *
  */
 
-/* jshint strict: true, esversion: 9 */
+/* jshint strict: true, esversion: 11 */
+"use strict";
 
 // Put our functions into a "WikiTreeAPI" namespace.
-window.WikiTreeAPI = window.WikiTreeAPI || {};
+var WikiTreeAPI = WikiTreeAPI || {};
+window.WikiTreeAPI = WikiTreeAPI;
 
 const dateTokenCache = {};
 
@@ -17,7 +19,7 @@ const dateTokenCache = {};
  * Serializes WikiTree fuzzy date using formatting string
  * @param  {object}  person Person object received from WikiTree API
  * @param  {string}  fieldName Name of the fuzzy date to be serialized, possible values: `BirthDate`, `DeathDate`
- * @param  {object}  options object containing foloowing options
+ * @param  {object}  options object containing following options
  *                      * {string} [formatString="MMM DD, YYYY"]
  *                      * {boolean} [withCertainty=true]
  * @return {string} Serialized date
@@ -35,7 +37,9 @@ window.wtDate = function (person, fieldName, options = {}) {
     options = { ...DEFAULT_OPTIONS, ...options };
 
     function tokenize(formatString) {
-        if (dateTokenCache[formatString]) return dateTokenCache[formatString];
+        if (dateTokenCache[formatString]) {
+            return dateTokenCache[formatString];
+        }
 
         let prev = null;
         let tokens = [];
@@ -58,11 +62,13 @@ window.wtDate = function (person, fieldName, options = {}) {
         return tokens;
     }
 
-    tokens = tokenize(options.formatString);
+    let tokens = tokenize(options.formatString);
 
     let prop = person?.[fieldName];
 
-    if (!prop || prop === "0000-00-00") return "[unknown]";
+    if (!prop || prop === "0000-00-00") {
+        return "[unknown]";
+    }
 
     let [day, month, year] = prop
         .split("-")
@@ -70,13 +76,15 @@ window.wtDate = function (person, fieldName, options = {}) {
         .map((x) => parseInt(x));
 
     if (month === 0) {
-        // month is unknown, rest doesn't makes sense
+        // month is unknown, rest doesn't make sense
         tokens = tokens.filter((token) => token.includes("Y"));
     }
 
     tokens = tokens
         .map((token) => {
-            if (!"DMY".includes(token[0])) return token;
+            if (!"DMY".includes(token[0])) {
+                return token;
+            }
 
             return Object({
                 D: day ? day : null,
@@ -93,7 +101,7 @@ window.wtDate = function (person, fieldName, options = {}) {
     let serialized = tokens.join("");
     serialized = serialized.replaceAll(" ,", ","); // solves one of many possible issues when the day is unknown
 
-    certainty = options.withCertainty ? `${CERTAINTY_MAP?.[person?.DataStatus[fieldName]] || ""} ` : "";
+    let certainty = options.withCertainty ? `${CERTAINTY_MAP?.[person?.DataStatus[fieldName]] || ""} ` : "";
 
     return `${certainty}${serialized}`;
 };
@@ -101,7 +109,7 @@ window.wtDate = function (person, fieldName, options = {}) {
 /**
  * Serializes WikiTree complete name
  * @param  {object}  person Person object received from WikiTree API
- * @param  {object}  options object containing foloowing options
+ * @param  {object}  options object containing following options
  *                      * {array[string]} fields - possible values: `FirstName`, `LastNameCurrent`, `LastNameAtBirth`,
  *                                                                  `MiddleName`, `Nickname`, `Prefix`, `Suffix`
  * @return {string} Serialized name
@@ -112,6 +120,7 @@ window.wtCompleteName = function (person, options = {}) {
 
     const has = (field) => options.fields.includes(field);
 
+    let lastName = ""; // Protect against possible unassigned variable
     if (has("LastNameAtBirth") && has("LastNameCurrent")) {
         lastName =
             person?.LastNameCurrent !== person.LastNameAtBirth
@@ -143,13 +152,17 @@ WikiTreeAPI.Person = class Person {
         this._data = data;
 
         if (data.Parents) {
-            for (var p in data.Parents) {
-                this._data.Parents[p] = new WikiTreeAPI.Person(data.Parents[p]);
+            for (const p in data.Parents) {
+                if (data.Parents.hasOwnProperty(p)) {
+                    this._data.Parents[p] = new WikiTreeAPI.Person(data.Parents[p]);
+                }
             }
         }
         if (data.Children) {
-            for (var c in data.Children) {
-                this._data.Children[c] = new WikiTreeAPI.Person(data.Children[c]);
+            for (const c in data.Children) {
+                if (data.Children.hasOwnProperty(c)) {
+                    this._data.Children[c] = new WikiTreeAPI.Person(data.Children[c]);
+                }
             }
         }
     }
@@ -189,8 +202,8 @@ WikiTreeAPI.Person = class Person {
         return this._data.BirthName ? this._data.BirthName : this._data.BirthNamePrivate;
     }
     getPhotoUrl() {
-        if (this._data.PhotoData && this._data.PhotoData["url"]) {
-            return this._data.PhotoData["url"];
+        if (this._data.PhotoData && this._data.PhotoData.url) {
+            return this._data.PhotoData.url;
         }
     }
 
@@ -210,8 +223,8 @@ WikiTreeAPI.Person = class Person {
     // We use a few "setters". For the parents, we want to update the Parents Person objects as well as the ids themselves.
     // For TreeViewer we only set the parents and children, so we don't need setters for all the _data elements.
     setMother(person) {
-        var id = person.getId();
-        var oldId = this._data.Mother;
+        const id = person.getId();
+        const oldId = this._data.Mother;
         this._data.Mother = id;
         if (!this._data.Parents) {
             this._data.Parents = {};
@@ -221,8 +234,8 @@ WikiTreeAPI.Person = class Person {
         this._data.Parents[id] = person;
     }
     setFather(person) {
-        var id = person.getId();
-        var oldId = this._data.Father;
+        const id = person.getId();
+        const oldId = this._data.Father;
         this._data.Father = id;
         if (!this._data.Parents) {
             this._data.Parents = {};
@@ -326,8 +339,7 @@ WikiTreeAPI.getRelatives = function (IDs, fields, options = {}) {
     // go through the options object, and add any of those options to the getRelativesParameters
     for (const key in options) {
         if (Object.hasOwnProperty.call(options, key)) {
-            const element = options[key];
-            getRelativesParameters[key] = element;
+            getRelativesParameters[key] = options[key];
         }
     }
     // console.log("getRelativesParameters: ", getRelativesParameters);
@@ -338,7 +350,7 @@ WikiTreeAPI.getRelatives = function (IDs, fields, options = {}) {
     });
 };
 
-// To get the Watchlist for the logged in user, we POST to the API's getWatchlist action. When we get a result back,
+// To get the Watchlist for the logged-in user, we POST to the API's getWatchlist action. When we get a result back,
 // we leave the result as an array of objects
 // Note that postToAPI returns the Promise from jquerys .ajax() call.
 // That feeds our .then() here, which also returns a Promise, which gets resolved by the return inside the "then" function.
@@ -366,8 +378,11 @@ WikiTreeAPI.getWatchlist = function (limit, getPerson, getSpace, fields) {
  *
  * The ID given may be one of:
  *      a WikiTree ID, i.e. Surname-{number}
- *      a page ID, i.e. {number}
+ *      a page ID, i.e. {number}, note that this is NOT the person ID
  *      a free-space profile name, i.e. Space:PageName, note that the 'Space:' is _required_
+ *
+ * As an alternative, a person_id can be supplied instead of the main ID by passing `{person_id: #value}`. This will
+ * be converted into an appropriate WikiTree ID.
  *
  * An associative array of options should be provided in order to vary the default options if required. Options are:
  *      resolveRedirect:    If 1, then requested profiles that are redirections are followed to the final profile
@@ -380,7 +395,7 @@ WikiTreeAPI.getWatchlist = function (limit, getPerson, getSpace, fields) {
  *                              "Date"          [The descriptive date]
  *
  * Returns an array containing up to six fields:
- *      status:             The status of the query response. 0 = everything okay. {string} = error message.
+ *      status:             The status of the query response. #0 = everything okay. {string} = error message.
  *      page_name:          The translated version of the original passed id
  *   or page_id:
  *      limit:              Confirmation of limit passed
@@ -401,10 +416,17 @@ WikiTreeAPI.getWatchlist = function (limit, getPerson, getSpace, fields) {
  *                  URL_300:    The relative URL of the 300px version of the image
  *                  URL_75:     The relative URL of the 75px version of the image
  *
- * @param {int,string} id
+ * @param {int|string|Object} id
  * @param {*} options
  */
-WikiTreeAPI.getPhotos = function (id, options = {}) {
+WikiTreeAPI.getPhotos = async function (id = null, options = {}) {
+    if (typeof id === "object") {
+        if (!id.hasOwnProperty("person_id")) {
+            return "";
+        }
+        let p_data = await window.WikiTreeAPI.getPerson(id.person_id, ["Id", "Name"]);
+        id = p_data._data.Name;
+    }
     const DEFAULT_OPTIONS = { resolveRedirect: 1, limit: 10, start: 0, order: "PageId" };
     // Merge passed options and set the correct action (to prevent overriding)
     let get_photo_ops = { ...DEFAULT_OPTIONS, ...options, action: "getPhotos", key: id };
@@ -422,7 +444,7 @@ WikiTreeAPI.getDescendants = function () {};
 WikiTreeAPI.postToAPI = function (postData) {
     var API_URL = "https://api.wikitree.com/api.php";
 
-    var ajax = $.ajax({
+    return $.ajax({
         // The WikiTree API endpoint
         url: API_URL,
 
@@ -434,8 +456,6 @@ WikiTreeAPI.postToAPI = function (postData) {
         dataType: "json",
         data: postData,
     });
-
-    return ajax;
 };
 
 // Utility function to get/set cookie data.
@@ -480,22 +500,22 @@ WikiTreeAPI.cookie = function (key, value, options) {
     }
 
     // We're not writing/setting the cookie, we're reading a value from it.
-    var cookies = document.cookie.split("; ");
+    const cookies = document.cookie.split("; ");
 
-    var result = key ? null : {};
-    for (var i = 0, l = cookies.length; i < l; i++) {
-        var parts = cookies[i].split("=");
-        var name = parts.shift();
+    let result = key ? null : {};
+    for (let i = 0, l = cookies.length; i < l; i++) {
+        const parts = cookies[i].split("=");
+        let name = parts.shift();
         name = decodeURIComponent(name.replace(/\+/g, " "));
-        var value = parts.join("=");
-        value = decodeURIComponent(value.replace(/\+/g, " "));
+        let c_value = parts.join("=");
+        c_value = decodeURIComponent(c_value.replace(/\+/g, " "));
 
         if (key && key === name) {
-            result = value;
+            result = c_value;
             break;
         }
         if (!key) {
-            result[name] = value;
+            result[name] = c_value;
         }
     }
     return result;

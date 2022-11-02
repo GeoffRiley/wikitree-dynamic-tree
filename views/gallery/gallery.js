@@ -4,6 +4,8 @@
  * @type {Window.GalleryView}
  */
 
+/* jshint esversion: 8 */
+
 window.GalleryView = class GalleryView extends window.View {
     meta() {
         return {
@@ -20,15 +22,13 @@ window.GalleryView = class GalleryView extends window.View {
 };
 
 window.Gallery = class Gallery {
-    constructor(container_selector, page_id) {
+    constructor(container_selector, person_id) {
         this.selector = container_selector;
-        this.page_id = page_id;
+        this.person_id = person_id;
     }
 
     async displayGallery() {
-        let p_data = await window.WikiTreeAPI.getPerson(this.page_id, ["Id", "Name"]);
-        let data = await window.WikiTreeAPI.getPhotos(p_data._data.Name);
-        let gallery = data;
+        let gallery = await window.WikiTreeAPI.getPhotos({ person_id: this.person_id });
         if (gallery.hasOwnProperty("status")) {
             if (typeof gallery.status !== "number" || gallery.status !== 0) {
                 $(this.selector).html(`<p>Unable to find page, or no photos on requested page</p>`);
@@ -44,11 +44,16 @@ window.Gallery = class Gallery {
         }
         const wv = $("#gallery");
         wv[0].style.display = "flex";
+        wv[0].style.flexWrap = "wrap";
+        wv[0].style.alignItems = "center";
+        wv[0].style.justifyContent = "space-around";
+        wv[0].style.alignContent = "space-around";
         for (const photo_no in gallery.photos) {
             if (gallery.photos.hasOwnProperty(photo_no)) {
                 const photo = gallery.photos[photo_no];
                 let p_html = `<div class="photo">`;
-                p_html += `<img src="https://www.wikitree.com${photo.URL_300}" alt="${photo.ImageName} title="${photo.ImageName}"/>`;
+                p_html += `<img src="https://www.wikitree.com${photo.URL_300}" alt="image from file ${photo.ImageName}"/><br/>`;
+                p_html += `${photo.ImageName}`;
                 p_html += `</div>`;
                 wv.append(p_html);
             }
